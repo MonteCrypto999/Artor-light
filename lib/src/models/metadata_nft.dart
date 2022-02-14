@@ -1,40 +1,46 @@
 class MetadataNFT {
+  final String assetName;
   final String name;
-  final String description;
+  final String project;
+  String? policyID;
+  String? description;
+  String? type;
   final String image;
   final int edition;
-  final DateTime date;
-  final List<LayerAttributesData> attributes;
+  final Map<String, dynamic> attributes;
 
-  MetadataNFT({
-    required this.name,
-    this.description = '',
-    required this.image,
-    required this.edition,
-    required this.date,
-    required this.attributes,
-  });
+  MetadataNFT(
+      {required this.assetName,
+      required this.name,
+      required this.project,
+      required this.image,
+      required this.edition,
+      required this.attributes,
+      this.type});
 
-  Map<String, dynamic> toJson() => {
-        'name': name,
-        'description': description,
-        'image': image,
-        'edition': edition,
-        'date': date.toIso8601String(),
-        'attributes': attributes.map((attr) => attr.toJson()).toList()
+  Map<String, dynamic> toJsonCIP25() => {
+        "721": {
+          policyID != null ? policyID : "null": {
+            assetName: {
+              "Project": project,
+              "name": name,
+              "image": image,
+              "attributes": attributes,
+              type != null ? "type" : type: ""
+            }
+          }
+        }
       };
 }
 
 class LayerAttributesData {
   String name;
-  List<AttributeData> attributes;
+  AttributeData attribute;
 
-  LayerAttributesData(this.name, this.attributes);
+  LayerAttributesData(this.name, this.attribute);
 
   Map<String, dynamic> toJson() {
-    final _jsonAttributes = attributes.map((e) => e.toJson()).toList();
-
-    return {name: _jsonAttributes};
+    return {name: attribute.toJson()};
   }
 }
 
