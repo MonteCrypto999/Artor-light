@@ -251,6 +251,19 @@ Future<void> scanFolder() async {
   final List<Directory> _listDirLayers =
       _rawDirList.where((dir) => getDirname(dir.path).contains('-')).toList();
 
+  _listDirLayers.sort((a, b) {
+    String elementADirname = getDirname(a.path).split(('-')).first;
+    String elementBDirname = getDirname(b.path).split('-').first;
+
+    int? _checkIntA = int.tryParse(elementADirname);
+    int? _checkIntB = int.tryParse(elementBDirname);
+
+    if (_checkIntA != null && _checkIntB != null) {
+      return _checkIntA.compareTo(_checkIntB);
+    }
+    return elementADirname.compareTo(elementBDirname);
+  });
+
   // _listDirLayers.sort()
   if (_listDirLayers.isEmpty) {
     exit(0);
