@@ -215,9 +215,11 @@ Future<void> checkMetaConfig() async {
 AttributeData Function(String path) getMetadataAttr(bool isConfigExists) {
   AttributeData getFromPath(String path) {
     final _baseName = path.split('\\').last.replaceAll('.png', '');
-    final List _splitMeta = _baseName.split('-').first.split(".");
-    _splitMeta.removeAt(0);
-    final String? _meta = _splitMeta.join(" ").toTitleCase();
+    final String? _meta = _baseName
+        .split('-')
+        .first
+        .replaceAll(RegExp('[^A-Za-z0-9]'), " ")
+        .toTitleCase();
 
     return AttributeData(_meta!);
   }
@@ -249,6 +251,7 @@ Future<void> scanFolder() async {
   final List<Directory> _listDirLayers =
       _rawDirList.where((dir) => getDirname(dir.path).contains('-')).toList();
 
+  // _listDirLayers.sort()
   if (_listDirLayers.isEmpty) {
     exit(0);
   }
