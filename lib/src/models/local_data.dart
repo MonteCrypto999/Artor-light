@@ -44,7 +44,7 @@ class LayerData {
 class LayerElement {
   final int id;
   final String name;
-  final List<AttributeData> attributes;
+  final AttributeData attribute;
   final String path;
   final int weight;
 
@@ -52,7 +52,7 @@ class LayerElement {
     required this.id,
     required this.name,
     required this.path,
-    this.attributes = const [],
+    required this.attribute,
     this.weight = 100,
   });
 }

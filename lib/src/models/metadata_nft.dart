@@ -6,7 +6,7 @@ class MetadataNFT {
   String? description;
   String? type;
   final String image;
-  final int edition;
+  final String edition;
   final Map<String, dynamic> attributes;
 
   MetadataNFT(
@@ -26,7 +26,7 @@ class MetadataNFT {
               "name": name,
               "image": image,
               "attributes": attributes,
-              type != null ? "type" : type: ""
+              "type": type
             }
           }
         }

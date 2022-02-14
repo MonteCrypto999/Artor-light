@@ -2,6 +2,7 @@ import 'models/local_data.dart';
 
 int width = defaultWidth;
 int height = defaultHeight;
+String? policyID = "policy";
 const description = "test";
 // const baseImageUri = "END";
 const startEditionFrom = 1;

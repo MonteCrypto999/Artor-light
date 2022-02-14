@@ -7,6 +7,7 @@ import 'package:path/path.dart' show dirname;
 import 'dart:core';
 import 'dart:math';
 import 'dart:typed_data';
+import 'package:intl/intl.dart';
 
 import 'config.dart';
 
@@ -17,12 +18,16 @@ late ui.PictureRecorder recorder;
 late ui.Canvas nftCanvas;
 final String dir = dirname(Platform.script.toFilePath());
 String outputDir = '/output';
+String projectName = "Project E.N.D";
+String assetName = "ProjectEND";
 
 List<MetadataNFT> metadataList = [];
 List<LayerAttributesData> attributesList = [];
 List<LayerData> layersData = [];
 Map<String, dynamic>? metadataConfig;
 bool isMetadataExists = false;
+
+final NumberFormat _formatter = NumberFormat("00000");
 
 extension StringCasingExtension on String {
   String toCapitalized() =>
@@ -37,21 +42,34 @@ Future<void> saveImage(_editionCount) async {
   final _encodePng = await _img.toByteData(format: ui.ImageByteFormat.png);
 
   if (_encodePng != null) {
-    File('$dir/output/$_editionCount.png')
+    File('$dir/output/${_formatter.format(_editionCount)}.png')
         .writeAsBytesSync(_encodePng.buffer.asUint8List());
   } else {}
 }
 
 void addMetadata(String name, int edition) {
-  final DateTime date = DateTime.now();
-  final String image = '$edition.png';
+  final Map<String, dynamic> _attr = {};
+  final String image = 'ipfs://$edition.png';
+
+  final _editionWithDigits = _formatter.format(edition);
+  String? type;
+  if (attributesList.isNotEmpty) {
+    for (var attr in attributesList) {
+      if (attr.name == 'Base') {
+        type = attr.attribute.value;
+        continue;
+      }
+      _attr[attr.name] = attr.attribute;
+    }
+  }
   MetadataNFT tempMetadata = MetadataNFT(
-    name: name,
-    description: dir.split('\\').last,
+    assetName: assetName + _editionWithDigits,
+    project: projectName,
+    edition: _editionWithDigits,
+    name: "$projectName #$_editionWithDigits",
     image: image,
-    edition: edition,
-    date: date,
-    attributes: attributesList,
+    type: type,
+    attributes: _attr,
   );
   saveMetaDataSingleFile(editionCount: edition, data: tempMetadata);
 
@@ -73,8 +91,7 @@ Future<void> checkOutputDir({String dirName = '/output'}) async {
 
 void addAttributes(LayerData layer) {
   LayerElement selectElement = layer.selectedElement!;
-  final List<AttributeData> value =
-      selectElement.attributes.isEmpty ? [] : selectElement.attributes;
+  final AttributeData value = selectElement.attribute;
   final LayerAttributesData _attribute =
       LayerAttributesData(selectElement.name, value);
   attributesList.add(_attribute);
@@ -163,7 +180,7 @@ void writeMetaData(_data) =>
 void saveMetaDataSingleFile(
     {required int editionCount, required MetadataNFT data}) {
   File('$dir/output/$editionCount.json')
-      .writeAsStringSync(jsonEncode(data.toJson()));
+      .writeAsStringSync(jsonEncode(data.toJsonCIP25()));
 }
 
 String getDirname(String path, {String? symbol}) {
@@ -195,25 +212,17 @@ Future<void> checkMetaConfig() async {
   }
 }
 
-List<AttributeData> Function(String path) getMetadataAttr(bool isConfigExists) {
-  List<AttributeData> getFromPath(String path) {
+AttributeData Function(String path) getMetadataAttr(bool isConfigExists) {
+  AttributeData getFromPath(String path) {
     final _baseName = path.split('\\').last.replaceAll('.png', '');
-    final List<String?> _metaRawList = _baseName.split('-').map((e) {
-      if (int.tryParse(e) == null) {
-        return e.replaceAll('.', ' ').toTitleCase();
-      }
-    }).toList();
+    final List _splitMeta = _baseName.split('-').first.split(".");
+    _splitMeta.removeAt(0);
+    final String? _meta = _splitMeta.join(" ").toTitleCase();
 
-    List<AttributeData> _attributes = [];
-
-    for (var meta in _metaRawList) {
-      if (meta != null) _attributes.add(AttributeData(meta));
-    }
-
-    return _attributes;
+    return AttributeData(_meta!);
   }
 
-  List<AttributeData> getFromConfigFile(String path) {
+  AttributeData getFromConfigFile(String path) {
     final _key = path.split('\\').last.replaceAll('.png', '');
     final bool _contains = metadataConfig!.containsKey(_key);
     if (_contains) {
@@ -245,7 +254,7 @@ Future<void> scanFolder() async {
   }
 
   // String _dirId;
-  List<AttributeData> Function(String) getAttributes =
+  AttributeData Function(String) getAttribute =
       getMetadataAttr(isMetadataExists);
 
   for (Directory layerDir in _listDirLayers) {
@@ -279,11 +288,11 @@ Future<void> scanFolder() async {
 
     for (int i = 0; i < _layerElementsData.length; i++) {
       final _path = _layerElementsData[i].path;
-      final _value = getAttributes(_path);
+      final _value = getAttribute(_path);
       final _element = LayerElement(
           id: i,
           name: _name,
-          attributes: _value,
+          attribute: _value,
           path: _path,
           weight: getWeight(_path));
       _layerElements.add(_element);
