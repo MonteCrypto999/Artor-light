@@ -13,6 +13,7 @@ import 'config.dart';
 
 import 'models/metadata_nft.dart';
 import 'models/local_data.dart';
+import 'models/rule.dart';
 
 late ui.PictureRecorder recorder;
 late ui.Canvas nftCanvas;
@@ -26,6 +27,7 @@ List<LayerAttributesData> attributesList = [];
 List<LayerData> layersData = [];
 Map<String, dynamic>? metadataConfig;
 Map<String, List>? metadataCompliance;
+Map<int, Rule>? rules;
 bool isMetadataExists = false;
 bool isCheckActived = false;
 String logs = "";
@@ -222,6 +224,17 @@ Future<void> checkConfigFiles() async {
   _json = await readJsonFile('check.json');
   if (_json != null) {
     metadataCompliance = Map<String, List>.from(_json);
+    isCheckActived = true;
+  }
+
+  _json = await readJsonFile('rules.json');
+  if (_json != null) {
+    rules = Map<String, dynamic>.from(_json).map((key, value) {
+      var _tmpValues = Map<String, dynamic>.from(value);
+      _tmpValues["id"] = key;
+      return MapEntry(int.parse(key), Rule.fromJson(_tmpValues));
+    });
+
     isCheckActived = true;
   }
 }
