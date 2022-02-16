@@ -49,3 +49,5 @@ app.*.map.json
 check_head.json
 check.json
 conditions.json
+
+assets_testF/

@@ -196,37 +196,33 @@ String getDirname(String path, {String? symbol}) {
   }
 }
 
-Future<void> checkMetaConfig() async {
-  String _jsonFilePath = '$dir/meta.json';
-  File _file = File(_jsonFilePath);
-
-  if (await _file.exists()) {
-    final _raw = await _file.readAsString();
-    final _json = jsonDecode(_raw);
-
-    if (_json != null) {
-      metadataConfig = _json;
-      isMetadataExists = true;
-    } else {
-      isMetadataExists = false;
-    }
-  } else {
-    isMetadataExists = false;
-  }
-}
-
-Future<void> addMetaCompliance() async {
-  String _jsonFilePath = '$dir/check.json';
+Future<dynamic> readJsonFile(String fileName) async {
+  String _jsonFilePath = '$dir/$fileName';
   File _file = File(_jsonFilePath);
 
   if (await _file.exists()) {
     final _raw = await _file.readAsString();
     final _json = json.decode(_raw);
+    return _json;
+  } else {
+    return null;
+  }
+}
 
-    if (_json != null) {
-      metadataCompliance = Map<String, List>.from(_json);
-      isCheckActived = true;
-    }
+Future<void> checkConfigFiles() async {
+  var _json = await readJsonFile('meta.json');
+
+  if (_json != null) {
+    metadataConfig = _json;
+    isMetadataExists = true;
+  } else {
+    isMetadataExists = false;
+  }
+
+  _json = await readJsonFile('check.json');
+  if (_json != null) {
+    metadataCompliance = Map<String, List>.from(_json);
+    isCheckActived = true;
   }
 }
 
@@ -282,7 +278,6 @@ Future<void> scanFolder() async {
     return elementADirname.compareTo(elementBDirname);
   });
 
-  await addMetaCompliance();
   if (_listDirLayers.isEmpty) {
     exit(0);
   }

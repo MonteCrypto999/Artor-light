@@ -9,7 +9,7 @@ import '../src/functions.dart';
 void main() async {
   await scanFolder();
   await checkOutputDir();
-  await checkMetaConfig();
+  await checkConfigFiles();
   runApp(const ArtorLightApp());
 }
 
