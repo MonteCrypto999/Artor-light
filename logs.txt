@@ -1,0 +1,9 @@
+Erreur : les metadata du fichier C:\Users\theof\Documents\Projet\artor_light_flutter\1-Background\Dark-Cyber-100.png ne sont pas conformes. valeur: Dark 
+Erreur : les metadata du fichier C:\Users\theof\Documents\Projet\artor_light_flutter\4-ArmLeft\Greaser_Flames-35.png ne sont pas conformes. valeur: Greaser_Flames 
+Erreur : les metadata du fichier C:\Users\theof\Documents\Projet\artor_light_flutter\4-ArmLeft\Streetpunk-34.png ne sont pas conformes. valeur: Streetpunk 
+Erreur : les metadata du fichier C:\Users\theof\Documents\Projet\artor_light_flutter\5-ArmRight\Greaser_Flames-35.png ne sont pas conformes. valeur: Greaser_Flames 
+Erreur : les metadata du fichier C:\Users\theof\Documents\Projet\artor_light_flutter\5-ArmRight\Streetpunk-34.png ne sont pas conformes. valeur: Streetpunk 
+Erreur : les metadata du fichier C:\Users\theof\Documents\Projet\artor_light_flutter\6-ShoulderLeft\Greaser_Flames-35.png ne sont pas conformes. valeur: Greaser_Flames 
+Erreur : les metadata du fichier C:\Users\theof\Documents\Projet\artor_light_flutter\6-ShoulderLeft\Streetpunk-38.png ne sont pas conformes. valeur: Streetpunk 
+Erreur : les metadata du fichier C:\Users\theof\Documents\Projet\artor_light_flutter\7-ShoulderRight\Greaser_Flames-35.png ne sont pas conformes. valeur: Greaser_Flames 
+Erreur : les metadata du fichier C:\Users\theof\Documents\Projet\artor_light_flutter\7-ShoulderRight\Streetpunk-38.png ne sont pas conformes. valeur: Streetpunk 

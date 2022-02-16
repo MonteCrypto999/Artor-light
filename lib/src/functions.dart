@@ -25,7 +25,10 @@ List<MetadataNFT> metadataList = [];
 List<LayerAttributesData> attributesList = [];
 List<LayerData> layersData = [];
 Map<String, dynamic>? metadataConfig;
+Map<String, List>? metadataCompliance;
 bool isMetadataExists = false;
+bool isCheckActived = false;
+String logs = "";
 
 final NumberFormat _formatter = NumberFormat("00000");
 
@@ -212,6 +215,21 @@ Future<void> checkMetaConfig() async {
   }
 }
 
+Future<void> addMetaCompliance() async {
+  String _jsonFilePath = '$dir/check.json';
+  File _file = File(_jsonFilePath);
+
+  if (await _file.exists()) {
+    final _raw = await _file.readAsString();
+    final _json = json.decode(_raw);
+
+    if (_json != null) {
+      metadataCompliance = Map<String, List>.from(_json);
+      isCheckActived = true;
+    }
+  }
+}
+
 AttributeData Function(String path) getMetadataAttr(bool isConfigExists) {
   AttributeData getFromPath(String path) {
     final _baseName = path.split('\\').last.replaceAll('.png', '');
@@ -264,7 +282,7 @@ Future<void> scanFolder() async {
     return elementADirname.compareTo(elementBDirname);
   });
 
-  // _listDirLayers.sort()
+  await addMetaCompliance();
   if (_listDirLayers.isEmpty) {
     exit(0);
   }
@@ -274,7 +292,6 @@ Future<void> scanFolder() async {
       getMetadataAttr(isMetadataExists);
 
   for (Directory layerDir in _listDirLayers) {
-    // _dirId = getDirname(layerDir.path).split('-').first;
     final _name = getDirname(layerDir.path, symbol: '-');
 
     int getWeight(String path) {
@@ -305,6 +322,32 @@ Future<void> scanFolder() async {
     for (int i = 0; i < _layerElementsData.length; i++) {
       final _path = _layerElementsData[i].path;
       final _value = getAttribute(_path);
+      final _rawValue =
+          _path.split('\\').last.replaceAll('.png', '').split('-').first;
+
+      if (isCheckActived) {
+        if (metadataCompliance != null) {
+          var _meta = metadataCompliance!.map((key, values) {
+            var _key = key.toLowerCase();
+            List _values = [];
+            for (var value in values) {
+              _values.add(value.toString().toLowerCase());
+            }
+
+            return MapEntry(_key, _values);
+          });
+
+          if (!_meta.containsKey(_name.toLowerCase())) {
+            logs = logs +
+                "Erreur : le layer ($_name) du $_path n\'est pas conforme.\n";
+          } else if (!_meta[_name.toLowerCase()]!
+              .contains(_rawValue.toLowerCase())) {
+            logs = logs +
+                "Erreur : les metadata du fichier $_path ne sont pas conformes. valeur: $_rawValue \n";
+          }
+        }
+      }
+
       final _element = LayerElement(
           id: i,
           name: _name,
@@ -313,6 +356,11 @@ Future<void> scanFolder() async {
           weight: getWeight(_path));
       _layerElements.add(_element);
     }
+    var logFile = File('$dir/logs.txt');
+    if (await logFile.exists()) {
+      logFile.writeAsStringSync("");
+    }
+    logFile.writeAsStringSync(logs);
 
     LayerData _layerData =
         LayerData(id: 0, name: _name, elements: _layerElements);

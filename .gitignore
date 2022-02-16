@@ -45,3 +45,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+check_head.json
+check.json
+conditions.json
