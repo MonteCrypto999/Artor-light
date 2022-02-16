@@ -7,9 +7,9 @@ import 'screens/home_screens.dart';
 import '../src/functions.dart';
 
 void main() async {
-  await scanFolder();
-  await checkOutputDir();
   await checkConfigFiles();
+  await checkOutputDir();
+  await scanFolder();
   runApp(const ArtorLightApp());
 }
 

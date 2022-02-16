@@ -51,3 +51,5 @@ check.json
 conditions.json
 
 assets_testF/
+output/
+logs.txt
