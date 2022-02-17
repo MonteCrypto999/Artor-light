@@ -14,6 +14,7 @@ import 'config.dart';
 import 'models/metadata_nft.dart';
 import 'models/local_data.dart';
 import 'models/rule.dart';
+import 'models/randomElement.dart';
 
 late ui.PictureRecorder recorder;
 late ui.Canvas nftCanvas;
@@ -60,8 +61,9 @@ void addMetadata(String name, int edition) {
   String? type;
   if (attributesList.isNotEmpty) {
     for (var attr in attributesList) {
-      if (attr.name == 'Base') {
-        type = attr.attribute.value;
+      String _filterType = 'Base';
+      if (attr.name == _filterType) {
+        type = attr.attribute.value.replaceAll(_filterType, "").trim();
         continue;
       }
       _attr[attr.name] = attr.attribute;
@@ -154,10 +156,12 @@ bool isDnaUnique(List<List<int>> dnaList, List dna) {
 }
 
 List<int> createDna(RaceData data) {
-  List<int> randNum = [];
+  List<RandomElement> randElements = [];
+  List<int> _finalRandElements = [];
 
   for (var layer in data.layers) {
     List<int> _randElement = [];
+    String _elementName;
     int _randElementNum;
     bool _rarity = layer.elements.any((element) => element.weight != 100);
 
@@ -172,11 +176,69 @@ List<int> createDna(RaceData data) {
       _randElement.shuffle();
       _randElementNum = _randElement.first;
     }
+    var _elementData =
+        layer.elements.firstWhere((e) => e.id == _randElementNum);
+    _elementName = _elementData.path
+        .split("\\")
+        .last
+        .replaceAll(".png", "")
+        .split("-")
+        .first;
 
-    randNum.add(_randElementNum);
+    String _matcher =
+        layer.name.toLowerCase() + ":" + _elementName.toLowerCase();
+    randElements.add(RandomElement(
+        layerPosition: layer.id,
+        element: _elementData,
+        matcher: _matcher)); //TODO Finir la fonction, matcher
   }
 
-  return randNum;
+  // Check Rules
+  if (rules != null) {
+    for (Rule rule in rules!.values) {
+      for (RandomElement randomElement in randElements) {
+        if (rule.condition == randomElement.matcher) {
+          if (rule.res.isNotEmpty) {
+            String _layerName = rule.res["layer_name"].toString().toLowerCase();
+            List<String> _values = List<String>.from(rule.res["values"])
+              ..forEach((e) => e.toLowerCase());
+
+            RandomElement _elementChoiced = randElements.firstWhere((e) {
+              return e.element.name.toLowerCase() == _layerName;
+            });
+
+            bool _isElementListed =
+                _values.contains(_elementChoiced.matcher.split(":").last);
+
+            if (!_isElementListed) {
+              _values.shuffle();
+              String _choosedValue = _values.first.toLowerCase();
+              var _layerData = data.layers
+                  .firstWhere((e) => e.name.toLowerCase() == _layerName);
+
+              LayerElement _elementData = _layerData.elements.firstWhere((e) =>
+                  e.path
+                      .split("\\")
+                      .last
+                      .replaceAll(".png", "")
+                      .split("-")
+                      .first
+                      .toLowerCase() ==
+                  _choosedValue);
+
+              int _randIndex = randElements.indexOf(_elementChoiced);
+              randElements[_randIndex] = RandomElement(
+                  layerPosition: _layerData.id,
+                  element: _elementData,
+                  matcher: _layerName + ":" + _choosedValue);
+            }
+          }
+        }
+      }
+    }
+  }
+  _finalRandElements = randElements.map((e) => e.element.id).toList();
+  return _finalRandElements;
 }
 
 void writeMetaData(_data) =>
@@ -301,6 +363,8 @@ Future<void> scanFolder() async {
 
   for (Directory layerDir in _listDirLayers) {
     final _name = getDirname(layerDir.path, symbol: '-');
+    final int _layerPosition =
+        int.parse(layerDir.path.split("\\").last.split("-").first);
 
     int getWeight(String path) {
       const int _defaultWeight = 100;
@@ -371,7 +435,7 @@ Future<void> scanFolder() async {
     logFile.writeAsStringSync(logs);
 
     LayerData _layerData =
-        LayerData(id: 0, name: _name, elements: _layerElements);
+        LayerData(id: _layerPosition, name: _name, elements: _layerElements);
     layersData.add(_layerData);
   }
 }

@@ -1,7 +1,7 @@
 class Rule {
   int id;
   String condition;
-  Map res;
+  Map<String, dynamic> res;
   bool? include;
 
   Rule(
