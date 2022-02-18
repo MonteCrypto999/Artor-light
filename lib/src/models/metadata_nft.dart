@@ -20,15 +20,17 @@ class MetadataNFT {
 
   Map<String, dynamic> toJsonCIP25() => {
         "721": {
-          policyID != null ? policyID : "null": {
+          policyID != null ? policyID : "<policy_id>": {
             assetName: {
-              "Project": project,
+              "project": project,
               "name": name,
               "image": image,
+              "mediaType": "image/png",
               "attributes": attributes,
               "type": type
             }
-          }
+          },
+          "version": "1.0"
         }
       };
 }
