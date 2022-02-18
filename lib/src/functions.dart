@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:path/path.dart' show dirname;
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import 'dart:core';
 import 'dart:math';
@@ -29,8 +31,10 @@ List<LayerData> layersData = [];
 Map<String, dynamic>? metadataConfig;
 Map<String, List>? metadataCompliance;
 Map<int, Rule>? rules;
+Map<String, dynamic>? config;
 bool isMetadataExists = false;
 bool isCheckActived = false;
+bool haveConfig = false;
 String logs = "";
 
 final NumberFormat _formatter = NumberFormat("00000");
@@ -42,20 +46,28 @@ extension StringCasingExtension on String {
       split(' ').map((str) => str.toCapitalized()).join(' ');
 }
 
-Future<void> saveImage(_editionCount) async {
+Future<String> saveImage(_editionCount) async {
   final _picture = recorder.endRecording();
   final _img = await _picture.toImage(width, height);
   final _encodePng = await _img.toByteData(format: ui.ImageByteFormat.png);
 
   if (_encodePng != null) {
-    File('$dir/output/${_formatter.format(_editionCount)}.png')
-        .writeAsBytesSync(_encodePng.buffer.asUint8List());
-  } else {}
+    final _file = File('$dir/output/${_formatter.format(_editionCount)}.png');
+    _file.writeAsBytesSync(_encodePng.buffer.asUint8List());
+    if (haveConfig) {
+      //TODO Make a button to Use this function after the generation
+      return await uploadFiletoIPFS(_file);
+    }
+
+    return "OK";
+  } else {
+    return "";
+  }
 }
 
-void addMetadata(String name, int edition) {
+void addMetadata(String name, int edition, String ipfsHash) {
   final Map<String, dynamic> _attr = {};
-  final String image = 'ipfs://$edition.png';
+  final String image = 'ipfs://$ipfsHash';
 
   final _editionWithDigits = _formatter.format(edition);
   String? type;
@@ -197,7 +209,7 @@ List<int> createDna(RaceData data) {
   if (rules != null) {
     for (Rule rule in rules!.values) {
       for (RandomElement randomElement in randElements) {
-        if (rule.condition == randomElement.matcher) {
+        if (rule.condition.toLowerCase() == randomElement.matcher) {
           if (rule.res.isNotEmpty) {
             String _layerName = rule.res["layer_name"].toString().toLowerCase();
             List<String> _values = List<String>.from(rule.res["values"])
@@ -298,6 +310,13 @@ Future<void> checkConfigFiles() async {
     });
 
     isCheckActived = true;
+  }
+
+  _json = await readJsonFile('config.json');
+
+  if (_json != null) {
+    config = _json;
+    haveConfig = true;
   }
 }
 
@@ -440,6 +459,35 @@ Future<void> scanFolder() async {
   }
 }
 
+Future<dynamic> uploadFiletoIPFS(File file) async {
+  if (!haveConfig) {
+    throw 'Error: No config.json found, unable to upload file';
+  } else if (!config!.containsKey("auth")) {
+    throw 'Error: Unable to locate credentials in the config file';
+  }
+
+  var _credentials = config!["auth"];
+  var _baseUrl = Uri.parse("https://ipfs.infura.io:5001/api/v0/add");
+  var _bytes = file.readAsBytesSync();
+
+  final _req = http.MultipartRequest("POST", _baseUrl);
+  _req.headers.addAll({HttpHeaders.authorizationHeader: 'Basic $_credentials'});
+
+  final _multipartFile = http.MultipartFile.fromBytes('file', _bytes,
+      contentType: MediaType('image', 'png'));
+  _req.files.add(_multipartFile);
+
+  final _streamedResponse = await _req.send();
+  if (_streamedResponse.statusCode != 200) {
+    throw 'Error: Unable to upload the data';
+  }
+  final _response = await http.Response.fromStream(_streamedResponse);
+
+  final _decode = json.decode(_response.body) as Map<String, dynamic>;
+  print(_decode);
+  return _decode["Hash"];
+}
+
 Future<void> startCreating(int endEditionAt) async {
   Stopwatch _executionTime = Stopwatch()..start();
   final String _raceName = dir.split('/').last..split('.').last;
@@ -462,8 +510,11 @@ Future<void> startCreating(int endEditionAt) async {
 
       await constructLayerToDna(newDna, race);
 
-      await saveImage(editionCount);
-      addMetadata(editionCount.toString(), editionCount);
+      String _ipfsHash = await saveImage(editionCount);
+      if (_ipfsHash.isEmpty) {
+        throw 'Error: ipfs hash invalid';
+      }
+      addMetadata(editionCount.toString(), editionCount, _ipfsHash);
 
       dnaList.add(newDna);
       editionCount++;

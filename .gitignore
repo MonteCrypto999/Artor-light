@@ -54,3 +54,6 @@ assets_testF/
 output/
 logs.txt
 example/
+config.json
+rules.json
+config_test.json
