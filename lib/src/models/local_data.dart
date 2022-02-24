@@ -56,3 +56,11 @@ class LayerElement {
     this.weight = 100,
   });
 }
+
+class Trait {
+  final String name;
+  final String layer;
+  int count;
+
+  Trait({required this.name, required this.layer, this.count = 1});
+}

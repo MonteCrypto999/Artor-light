@@ -18,7 +18,7 @@ class MetadataNFT {
       required this.attributes,
       this.type});
 
-  Map<String, dynamic> toJsonCIP25() => {
+  Map<String, dynamic> toJson() => {
         "721": {
           policyID != null ? policyID : "<policy_id>": {
             assetName: {
@@ -33,6 +33,20 @@ class MetadataNFT {
           "version": "1.0"
         }
       };
+  factory MetadataNFT.fromJson(Map<String, dynamic> json) {
+    final _asset = (json["721"] as Map<String, dynamic>).entries.first.value
+        as Map<String, dynamic>;
+    final String _assetName = _asset.keys.first;
+    final String _edition = _assetName.split('#').last;
+
+    return MetadataNFT(
+        assetName: _assetName,
+        name: _asset[_assetName]["name"],
+        project: _asset[_assetName]["project"],
+        image: _asset[_assetName]["image"],
+        edition: _edition,
+        attributes: _asset[_assetName]["attributes"]);
+  }
 }
 
 class LayerAttributesData {

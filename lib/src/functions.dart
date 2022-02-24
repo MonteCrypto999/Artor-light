@@ -16,7 +16,7 @@ import 'config.dart';
 import 'models/metadata_nft.dart';
 import 'models/local_data.dart';
 import 'models/rule.dart';
-import 'models/randomElement.dart';
+import 'models/random_element.dart';
 
 late ui.PictureRecorder recorder;
 late ui.Canvas nftCanvas;
@@ -32,6 +32,8 @@ Map<String, dynamic>? metadataConfig;
 Map<String, List>? metadataCompliance;
 Map<int, Rule>? rules;
 Map<String, dynamic>? config;
+List<File> metaFiles = [];
+String? baseElement;
 bool isMetadataExists = false;
 bool isCheckActived = false;
 bool haveConfig = false;
@@ -54,18 +56,17 @@ Future<String> saveImage(_editionCount) async {
   if (_encodePng != null) {
     final _file = File('$dir/output/${_formatter.format(_editionCount)}.png');
     _file.writeAsBytesSync(_encodePng.buffer.asUint8List());
-    if (haveConfig) {
-      //TODO Make a button to Use this function after the generation
-      return await uploadFiletoIPFS(_file);
-    }
+    // if (haveConfig) {
+    //   return await uploadFiletoIPFS(_file);
+    // }
 
-    return "OK";
+    return "QmbBzNmmBZMqsrhuqLjnKeG1H5NeS515QrcevyBRSkryoy"; // TODO Change for the deployment
   } else {
     return "";
   }
 }
 
-void addMetadata(String name, int edition, String ipfsHash) {
+void addMetadata(String name, int edition, String ipfsHash) async {
   final Map<String, dynamic> _attr = {};
   final String image = 'ipfs://$ipfsHash';
 
@@ -74,7 +75,7 @@ void addMetadata(String name, int edition, String ipfsHash) {
   if (attributesList.isNotEmpty) {
     for (var attr in attributesList) {
       String _filterType = 'Base';
-      if (attr.name == _filterType) {
+      if (attr.name.toLowerCase() == _filterType.toLowerCase()) {
         type = attr.attribute.value.replaceAll(_filterType, "").trim();
         continue;
       }
@@ -91,6 +92,7 @@ void addMetadata(String name, int edition, String ipfsHash) {
     attributes: _attr,
   );
   saveMetaDataSingleFile(editionCount: edition, data: tempMetadata);
+  // await uploadNFT(edition, tempMetadata);
 
   metadataList.add(tempMetadata);
   attributesList = [];
@@ -148,6 +150,11 @@ Future<List<LayerData>> constructLayerToDna(dna, RaceData data) async {
     LayerElement selectedElement =
         layer.elements.firstWhere((e) => e.id == dna[index]);
     layer.selectedElement = selectedElement;
+
+    // if (layer.name.toLowerCase() == "base") {
+    //   baseElement = layer.selectedElement!.path;
+    // } TODO: Final Mount
+
     listDnaToLayers.add(layer);
     addAttributes(layer);
 
@@ -200,12 +207,9 @@ List<int> createDna(RaceData data) {
     String _matcher =
         layer.name.toLowerCase() + ":" + _elementName.toLowerCase();
     randElements.add(RandomElement(
-        layerPosition: layer.id,
-        element: _elementData,
-        matcher: _matcher)); //TODO Finir la fonction, matcher
+        layerPosition: layer.id, element: _elementData, matcher: _matcher));
   }
 
-  // Check Rules
   if (rules != null) {
     for (Rule rule in rules!.values) {
       for (RandomElement randomElement in randElements) {
@@ -259,7 +263,7 @@ void writeMetaData(_data) =>
 void saveMetaDataSingleFile(
     {required int editionCount, required MetadataNFT data}) {
   File('$dir/output/$editionCount.json')
-      .writeAsStringSync(jsonEncode(data.toJsonCIP25()));
+      .writeAsStringSync(jsonEncode(data.toJson()));
 }
 
 String getDirname(String path, {String? symbol}) {
@@ -349,6 +353,60 @@ AttributeData Function(String path) getMetadataAttr(bool isConfigExists) {
   }
 }
 
+Future<List<Trait>> calculateTraits() async {
+  final Map<String, List<MetadataNFT>> _rawMetafiles = {};
+  final List<MetadataNFT> _cachedList = [];
+  final List<Trait> traits = [];
+
+  for (var _metaFile in metaFiles) {
+    if (await _metaFile.exists()) {
+      _cachedList.clear();
+      final _fileName = _metaFile.uri.pathSegments.last.replaceAll('.json', '');
+      final _raw = await _metaFile.readAsString();
+      final _json = List<Map<String, dynamic>>.from(json.decode(_raw));
+
+      for (var _jsonData in _json) {
+        final _metaDataTmp = MetadataNFT.fromJson(_jsonData);
+        _cachedList.add(_metaDataTmp);
+      }
+      _rawMetafiles[_fileName] = _cachedList;
+    }
+  }
+  if (_rawMetafiles.isNotEmpty) {
+    for (var _rawTraits in _rawMetafiles.values) {
+      for (var _meta in _rawTraits) {
+        for (var _attr in _meta.attributes.entries) {
+          if (traits.isNotEmpty) {
+            bool _f(e) => e.layer == _attr.key && e.name == _attr.value;
+            if (traits.any(_f)) {
+              final _traitListed = traits[traits.indexWhere(_f)];
+              _traitListed.count = _traitListed.count + 1;
+              traits[traits.indexWhere(_f)] = _traitListed;
+              continue;
+            }
+          }
+          final _tmpTrait = Trait(name: _attr.value, layer: _attr.key);
+          traits.add(_tmpTrait);
+        }
+      }
+    }
+  }
+  traits.sort((a, b) => b.count.compareTo(a.count));
+
+  return traits;
+}
+
+Future<void> exportTraitsToTxtFile(List<Trait> traits,
+    {String filename = 'traits.txt'}) async {
+  final _file = File('$dir/$filename');
+  String data = traits
+      .map((e) => e.layer + ' | ' + e.name + ' | ' + e.count.toString())
+      .toList()
+      .join("\n");
+
+  _file.writeAsString(data);
+}
+
 Future<void> scanFolder() async {
   final Directory _dir = Directory(dir);
   final List<FileSystemEntity> entities =
@@ -376,6 +434,10 @@ Future<void> scanFolder() async {
     exit(0);
   }
 
+  metaFiles = entities
+      .where((element) => element.path.contains('_metadata') && element is File)
+      .toList()
+      .cast();
   // String _dirId;
   AttributeData Function(String) getAttribute =
       getMetadataAttr(isMetadataExists);
@@ -430,7 +492,7 @@ Future<void> scanFolder() async {
 
           if (!_meta.containsKey(_name.toLowerCase())) {
             logs = logs +
-                "Erreur : le layer ($_name) du $_path n\'est pas conforme.\n";
+                "Erreur : le layer ($_name) du $_path n'est pas conforme.\n";
           } else if (!_meta[_name.toLowerCase()]!
               .contains(_rawValue.toLowerCase())) {
             logs = logs +
@@ -488,6 +550,38 @@ Future<dynamic> uploadFiletoIPFS(File file) async {
   return _decode["Hash"];
 }
 
+Future<void> uploadNFT(int edition, MetadataNFT metadata) async {
+  if (!haveConfig) {
+    throw 'Error: Cant upload without config json file';
+  } else if (!config!.containsKey("nft_maker")) {
+    throw 'Error: config file dont contains nftMaker Fields';
+  }
+  var _apiKey = config!["nft_maker"]["api_key"];
+  var _projectID = config!["nft_maker"]["project_id"];
+  var _baseUri = Uri.parse(
+      'http://api-testnet.nft-maker.io/UploadNft/$_apiKey/$_projectID');
+
+  Map<String, dynamic> _dataNFT = {
+    "assetName": metadata.assetName,
+    "previewImageNft": {
+      "mimetype": "image/png",
+      "fileFromIPFS": metadata.image,
+      "displayname": metadata.name,
+    },
+    "metadata": json.encode(metadata.toJson())
+  };
+  var _body = json.encode(_dataNFT);
+  var _contenType = {"Content-Type": "application/json"};
+  var _response = await http.post(_baseUri, body: _body, headers: _contenType);
+
+  if (_response.statusCode != 200) {
+    throw 'Error: Metadata cant be uploaded. logs: ${_response.body}';
+  }
+
+  var _decode = json.decode(_response.body);
+  print(_decode);
+}
+
 Future<void> startCreating(int endEditionAt) async {
   Stopwatch _executionTime = Stopwatch()..start();
   final String _raceName = dir.split('/').last..split('.').last;
@@ -522,8 +616,8 @@ Future<void> startCreating(int endEditionAt) async {
       print("DNA exists!");
     }
   }
-  // List _jsonMetadataList = metadataList.map((e) => e.toJson()).toList();
-  // writeMetaData(jsonEncode(_jsonMetadataList));
+  List _jsonMetadataList = metadataList.map((e) => e.toJson()).toList();
+  writeMetaData(jsonEncode(_jsonMetadataList));
 
   _executionTime.stop();
 }

@@ -1,7 +1,9 @@
-import 'package:artor_flutter/screens/processing_screens.dart';
 import 'package:flutter/material.dart';
 
 import 'components/title_component.dart';
+
+import 'processing_screens.dart';
+import 'traits_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -72,7 +74,23 @@ class BuildForm extends StatelessWidget {
               'Générer',
               style: TextStyle(color: Colors.white),
             ),
-          )
+          ),
+          SizedBox(
+            height: 20,
+          ),
+          TextButton(
+            onPressed: () {
+              if (_formK.currentState!.validate()) {
+                _formK.currentState!.save();
+                Navigator.push(
+                    context, MaterialPageRoute(builder: (_) => TraitsScreen()));
+              }
+            },
+            child: Text(
+              'Calculer les traits du projet',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
         ],
       ),
     );
