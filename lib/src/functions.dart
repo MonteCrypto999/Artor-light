@@ -174,12 +174,24 @@ bool isDnaUnique(List<List<int>> dnaList, List dna) {
   return _object.isEmpty ? true : false;
 }
 
+LayerElement selectElementByRarity(List<LayerElement> elements) {
+  List<int> _elementsID = [];
+
+  for (var element in elements) {
+    for (int i = 0; i < element.weight; i++) {
+      _elementsID.add(element.id);
+    }
+  }
+  _elementsID.shuffle();
+
+  return elements.firstWhere((e) => e.id == _elementsID.first);
+}
+
 List<int> createDna(RaceData data) {
   List<RandomElement> randElements = [];
   List<int> _finalRandElements = [];
 
   for (var layer in data.layers) {
-    List<int> _randElement = [];
     String _elementName;
     int _randElementNum;
     bool _rarity = layer.elements.any((element) => element.weight != 100);
@@ -187,13 +199,7 @@ List<int> createDna(RaceData data) {
     if (!_rarity) {
       _randElementNum = Random().nextInt(layer.elements.length);
     } else {
-      for (var element in layer.elements) {
-        for (int i = 0; i < element.weight; i++) {
-          _randElement.add(element.id);
-        }
-      }
-      _randElement.shuffle();
-      _randElementNum = _randElement.first;
+      _randElementNum = selectElementByRarity(layer.elements).id;
     }
     var _elementData =
         layer.elements.firstWhere((e) => e.id == _randElementNum);
@@ -217,7 +223,8 @@ List<int> createDna(RaceData data) {
           if (rule.res.isNotEmpty) {
             String _layerName = rule.res["layer_name"].toString().toLowerCase();
             List<String> _values = List<String>.from(rule.res["values"])
-              ..forEach((e) => e.toLowerCase());
+                .map((e) => e.toLowerCase())
+                .toList();
 
             RandomElement _elementChoiced = randElements.firstWhere((e) {
               return e.element.name.toLowerCase() == _layerName;
@@ -227,26 +234,33 @@ List<int> createDna(RaceData data) {
                 _values.contains(_elementChoiced.matcher.split(":").last);
 
             if (!_isElementListed) {
-              _values.shuffle();
-              String _choosedValue = _values.first.toLowerCase();
+              List<LayerElement> _elementsList = [];
               var _layerData = data.layers
                   .firstWhere((e) => e.name.toLowerCase() == _layerName);
 
-              LayerElement _elementData = _layerData.elements.firstWhere((e) =>
-                  e.path
-                      .split("\\")
-                      .last
-                      .replaceAll(".png", "")
-                      .split("-")
-                      .first
-                      .toLowerCase() ==
-                  _choosedValue);
+              for (String val in _values) {
+                final _e = _layerData.elements.firstWhere((element) =>
+                    element.path
+                        .split("\\")
+                        .last
+                        .replaceAll(".png", "")
+                        .split("-")
+                        .first
+                        .toLowerCase() ==
+                    val);
+                _elementsList.add(_e);
+              }
+
+              if (_elementsList.isEmpty) {
+                throw 'Error: elementList is empty while choosing rarity by rules';
+              }
+              LayerElement _elementData = selectElementByRarity(_elementsList);
 
               int _randIndex = randElements.indexOf(_elementChoiced);
               randElements[_randIndex] = RandomElement(
                   layerPosition: _layerData.id,
                   element: _elementData,
-                  matcher: _layerName + ":" + _choosedValue);
+                  matcher: _layerName + ":" + _elementData.name.toLowerCase());
             }
           }
         }
