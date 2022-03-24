@@ -187,11 +187,10 @@ LayerElement selectElementByRarity(List<LayerElement> elements) {
   return elements.firstWhere((e) => e.id == _elementsID.first);
 }
 
-List<int> createDna(RaceData data) {
-  List<RandomElement> randElements = [];
-  List<int> _finalRandElements = [];
+List<RandomElement> generateRandomElement(List<LayerData> layers) {
+  List<RandomElement> tmpElements = [];
 
-  for (var layer in data.layers) {
+  for (var layer in layers) {
     String _elementName;
     int _randElementNum;
     bool _rarity = layer.elements.any((element) => element.weight != 100);
@@ -212,63 +211,163 @@ List<int> createDna(RaceData data) {
 
     String _matcher =
         layer.name.toLowerCase() + ":" + _elementName.toLowerCase();
-    randElements.add(RandomElement(
+    tmpElements.add(RandomElement(
         layerPosition: layer.id, element: _elementData, matcher: _matcher));
   }
+  return tmpElements;
+}
+
+List<int> createDna(RaceData data) {
+  List<RandomElement> tmpElements = [];
+
+  List<RandomElement> randElements = [];
+  List<int> _finalRandElements = [];
+
+  tmpElements = generateRandomElement(data.layers);
 
   if (rules != null) {
+    List<RandomElement> checkElements = applyRules(tmpElements, data.layers);
+    while (!checkSize(checkElements)) {
+      final _list = generateRandomElement(data.layers);
+      checkElements = applyRules(_list, data.layers);
+    }
+    randElements = checkElements;
+  } else {
+    randElements = tmpElements;
+  }
+  _finalRandElements = randElements.map((e) => e.element.id).toList();
+  return _finalRandElements;
+}
+
+List<LayerElement> generateListByRules(
+    {required LayerData layerData,
+    required String layerName,
+    required List<String> values}) {
+  List<LayerElement> _elementsList = [];
+
+  for (String val in values) {
+    final _e = layerData.elements.firstWhere((element) =>
+        element.path
+            .split("\\")
+            .last
+            .replaceAll(".png", "")
+            .split("-")
+            .first
+            .toLowerCase() ==
+        val);
+    _elementsList.add(_e);
+  }
+  return _elementsList;
+}
+
+RandomElement getElementByRules(
+    {required Rule rule,
+    required List<RandomElement> randElements,
+    required String layerName}) {
+  RandomElement _elementChoiced = randElements.firstWhere((e) {
+    return e.element.name.toLowerCase() == layerName;
+  });
+  return _elementChoiced;
+}
+
+bool matchRule(List<String> ruleValues, RandomElement elementChoiced) {
+  return ruleValues.contains(elementChoiced.matcher.split(":").last);
+}
+
+bool checkSize(List<RandomElement> randElements) {
+  List<String> _size = ['s', 'l', 'm', 'xl'];
+  List<String> _layerSized = [
+    'armleft',
+    'armright',
+    'shoulderleft',
+    'shoulderright'
+  ];
+  late String size;
+
+  bool _isSized = true;
+  List<RandomElement> dataSized = randElements
+      .where((e) => _layerSized.contains(e.matcher.split(':').first))
+      .toList();
+
+  dataSized.firstWhere((data) {
+    size = data.element.path
+        .split("\\")
+        .last
+        .replaceAll(".png", "")
+        .split("-")
+        .first
+        .split('_')
+        .last
+        .toLowerCase();
+
+    return _size.contains(size);
+  });
+
+  for (RandomElement randomElement in dataSized) {
+    String _actualSize = randomElement.element.path
+        .split("\\")
+        .last
+        .replaceAll(".png", "")
+        .split("-")
+        .first
+        .split('_')
+        .last
+        .toLowerCase();
+    if (size != _actualSize) {
+      _isSized = false;
+    }
+  }
+  return _isSized;
+}
+
+List<RandomElement> applyRules(
+    List<RandomElement> randElements, List<LayerData> layers) {
+  List<RandomElement> elements = randElements.toList();
+
+  for (RandomElement randomElement in randElements) {
     for (Rule rule in rules!.values) {
-      for (RandomElement randomElement in randElements) {
-        if (rule.condition.toLowerCase() == randomElement.matcher) {
-          if (rule.res.isNotEmpty) {
-            String _layerName = rule.res["layer_name"].toString().toLowerCase();
-            List<String> _values = List<String>.from(rule.res["values"])
-                .map((e) => e.toLowerCase())
-                .toList();
+      if (rule.condition.toLowerCase() == randomElement.matcher) {
+        if (rule.res.isNotEmpty) {
+          List<String> _values = List<String>.from(rule.res["values"])
+              .map((e) => e.toLowerCase())
+              .toList();
+          String _layerName = rule.res["layer_name"].toString().toLowerCase();
 
-            RandomElement _elementChoiced = randElements.firstWhere((e) {
-              return e.element.name.toLowerCase() == _layerName;
-            });
+          RandomElement _elementChoiced = getElementByRules(
+              rule: rule, randElements: randElements, layerName: _layerName);
+          bool _isElementListed = matchRule(_values, _elementChoiced);
 
-            bool _isElementListed =
-                _values.contains(_elementChoiced.matcher.split(":").last);
+          if (!_isElementListed) {
+            LayerData _layerData =
+                layers.firstWhere((e) => e.name.toLowerCase() == _layerName);
+            List<LayerElement> _elementsList = generateListByRules(
+                layerData: _layerData, layerName: _layerName, values: _values);
 
-            if (!_isElementListed) {
-              List<LayerElement> _elementsList = [];
-              var _layerData = data.layers
-                  .firstWhere((e) => e.name.toLowerCase() == _layerName);
+            if (_elementsList.isEmpty) {
+              throw 'Error: elementList is empty while choosing rarity by rules';
+            }
 
-              for (String val in _values) {
-                final _e = _layerData.elements.firstWhere((element) =>
-                    element.path
+            LayerElement _elementData = selectElementByRarity(_elementsList);
+
+            int _randIndex = randElements.indexOf(_elementChoiced);
+            elements[_randIndex] = RandomElement(
+                layerPosition: _layerData.id,
+                element: _elementData,
+                matcher: _layerName +
+                    ":" +
+                    _elementData.path
                         .split("\\")
                         .last
                         .replaceAll(".png", "")
                         .split("-")
                         .first
-                        .toLowerCase() ==
-                    val);
-                _elementsList.add(_e);
-              }
-
-              if (_elementsList.isEmpty) {
-                throw 'Error: elementList is empty while choosing rarity by rules';
-              }
-              LayerElement _elementData = selectElementByRarity(_elementsList);
-
-              int _randIndex = randElements.indexOf(_elementChoiced);
-              randElements[_randIndex] = RandomElement(
-                  layerPosition: _layerData.id,
-                  element: _elementData,
-                  matcher: _layerName + ":" + _elementData.name.toLowerCase());
-            }
+                        .toLowerCase());
           }
         }
       }
     }
   }
-  _finalRandElements = randElements.map((e) => e.element.id).toList();
-  return _finalRandElements;
+  return elements;
 }
 
 void writeMetaData(_data) =>
