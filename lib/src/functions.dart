@@ -35,6 +35,7 @@ List<File> metaFiles = [];
 String? baseElement;
 bool isCheckActived = false;
 bool haveConfig = false;
+bool checkSizeEnabled = false;
 String logs = "";
 
 final NumberFormat _formatter = NumberFormat("00000");
@@ -176,10 +177,6 @@ Future<List<LayerData>> constructLayerToDna(dna, RaceData data) async {
         layer.elements.firstWhere((e) => e.id == dna[index]);
     layer.selectedElement = selectedElement;
 
-    // if (layer.name.toLowerCase() == "base") {
-    //   baseElement = layer.selectedElement!.path;
-    // } TODO: Final Mount
-
     listDnaToLayers.add(layer);
     addAttributes(layer);
 
@@ -252,10 +249,21 @@ List<int> createDna(RaceData data) {
 
   if (rules != null) {
     List<RandomElement> checkElements = applyRules(tmpElements, data.layers);
-    // while (!checkSize(checkElements)) {
-    //   final _list = generateRandomElement(data.layers);
-    //   checkElements = applyRules(_list, data.layers);
-    // }
+
+    final _tmpCheckSize =
+        data.layers.where((element) => element.name.toLowerCase() == "head");
+
+    // Temp Fix for Check Size issue
+    if (_tmpCheckSize.isNotEmpty) {
+      checkSizeEnabled = true;
+    }
+
+    if (checkSizeEnabled) {
+      while (!checkSize(checkElements)) {
+        final _list = generateRandomElement(data.layers);
+        checkElements = applyRules(_list, data.layers);
+      }
+    }
     randElements = checkElements;
   } else {
     randElements = tmpElements;
