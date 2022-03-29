@@ -47,12 +47,14 @@ class LayerElement {
   final AttributeData attribute;
   final String path;
   final int weight;
+  final bool hasJSONFile;
 
   LayerElement({
     required this.id,
     required this.name,
     required this.path,
     required this.attribute,
+    this.hasJSONFile = false,
     this.weight = 100,
   });
 }

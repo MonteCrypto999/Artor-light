@@ -51,19 +51,28 @@ class MetadataNFT {
 
 class LayerAttributesData {
   String name;
-  AttributeData attribute;
+  List<AttributeData> attributes;
 
-  LayerAttributesData(this.name, this.attribute);
+  LayerAttributesData(this.name, this.attributes);
 
   Map<String, dynamic> toJson() {
-    return {name: attribute.toJson()};
+    if (attributes.length == 1) {
+      return {name: attributes.first.value};
+    }
+
+    Map<String, Map<String, dynamic>> _temp = {};
+    List<MapEntry<String, dynamic>> _tempList = [];
+    for (var _attr in attributes) {
+      _tempList.add(MapEntry(_attr.name!, _attr.value));
+    }
+    _temp[name] = {}..addEntries(Iterable.castFrom(_tempList));
+    return _temp;
   }
 }
 
 class AttributeData {
+  String? name;
   String value;
 
-  AttributeData(this.value);
-
-  String toJson() => value;
+  AttributeData({this.name, required this.value});
 }

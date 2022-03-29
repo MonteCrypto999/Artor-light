@@ -28,13 +28,11 @@ String assetName = "ProjectEND";
 List<MetadataNFT> metadataList = [];
 List<LayerAttributesData> attributesList = [];
 List<LayerData> layersData = [];
-Map<String, dynamic>? metadataConfig;
 Map<String, List>? metadataCompliance;
 Map<int, Rule>? rules;
 Map<String, dynamic>? config;
 List<File> metaFiles = [];
 String? baseElement;
-bool isMetadataExists = false;
 bool isCheckActived = false;
 bool haveConfig = false;
 String logs = "";
@@ -76,10 +74,16 @@ void addMetadata(String name, int edition, String ipfsHash) async {
     for (var attr in attributesList) {
       String _filterType = 'Base';
       if (attr.name.toLowerCase() == _filterType.toLowerCase()) {
-        type = attr.attribute.value.replaceAll(_filterType, "").trim();
+        type = attr.attributes.first.value.replaceAll(_filterType, "").trim();
         continue;
       }
-      _attr[attr.name] = attr.attribute;
+      final _attrValues = attr.toJson();
+
+      if (_attrValues.entries.length == 1) {
+        _attr[attr.name] = _attrValues.entries.first.value;
+      } else {
+        _attr[attr.name] = _attrValues;
+      }
     }
   }
   MetadataNFT tempMetadata = MetadataNFT(
@@ -110,11 +114,32 @@ Future<void> checkOutputDir({String dirName = '/output'}) async {
   }
 }
 
-void addAttributes(LayerData layer) {
+void addAttributes(LayerData layer) async {
   LayerElement selectElement = layer.selectedElement!;
-  final AttributeData value = selectElement.attribute;
+  final _fileName = selectElement.path.split('\\').last.replaceAll('.png', '');
+
+  final _jsonFileName = '$_fileName.json';
+  List<String> _constructPath = selectElement.path.split('\\');
+  _constructPath.last = _jsonFileName;
+
+  Map? _rawjsonFile =
+      await readJsonFile(_constructPath.join('\\'), absolutePath: true);
+
+  List<AttributeData> values = [];
+  if (_rawjsonFile != null) {
+    final _json = Map<String, dynamic>.from(_rawjsonFile);
+
+    final _rawAttr = MetadataNFT.fromJson(_json).attributes;
+
+    for (var _attr in _rawAttr.entries) {
+      values.add(AttributeData(name: _attr.key, value: _attr.value));
+    }
+  } else {
+    values.add(selectElement.attribute);
+  }
+
   final LayerAttributesData _attribute =
-      LayerAttributesData(selectElement.name, value);
+      LayerAttributesData(selectElement.name, values);
   attributesList.add(_attribute);
 }
 
@@ -227,10 +252,10 @@ List<int> createDna(RaceData data) {
 
   if (rules != null) {
     List<RandomElement> checkElements = applyRules(tmpElements, data.layers);
-    while (!checkSize(checkElements)) {
-      final _list = generateRandomElement(data.layers);
-      checkElements = applyRules(_list, data.layers);
-    }
+    // while (!checkSize(checkElements)) {
+    //   final _list = generateRandomElement(data.layers);
+    //   checkElements = applyRules(_list, data.layers);
+    // }
     randElements = checkElements;
   } else {
     randElements = tmpElements;
@@ -389,8 +414,9 @@ String getDirname(String path, {String? symbol}) {
   }
 }
 
-Future<dynamic> readJsonFile(String fileName) async {
-  String _jsonFilePath = '$dir/$fileName';
+Future<dynamic> readJsonFile(String fileName,
+    {bool absolutePath = false}) async {
+  String _jsonFilePath = absolutePath ? fileName : '$dir/$fileName';
   File _file = File(_jsonFilePath);
 
   if (await _file.exists()) {
@@ -404,13 +430,6 @@ Future<dynamic> readJsonFile(String fileName) async {
 
 Future<void> checkConfigFiles() async {
   var _json = await readJsonFile('meta.json');
-
-  if (_json != null) {
-    metadataConfig = _json;
-    isMetadataExists = true;
-  } else {
-    isMetadataExists = false;
-  }
 
   _json = await readJsonFile('check.json');
   if (_json != null) {
@@ -437,33 +456,15 @@ Future<void> checkConfigFiles() async {
   }
 }
 
-AttributeData Function(String path) getMetadataAttr(bool isConfigExists) {
-  AttributeData getFromPath(String path) {
-    final _baseName = path.split('\\').last.replaceAll('.png', '');
-    final String? _meta = _baseName
-        .split('-')
-        .first
-        .replaceAll(RegExp('[^A-Za-z0-9]'), " ")
-        .toTitleCase();
+AttributeData getMetadataAttr(String path) {
+  final _baseName = path.split('\\').last.replaceAll('.png', '');
+  final String? _meta = _baseName
+      .split('-')
+      .first
+      .replaceAll(RegExp('[^A-Za-z0-9]'), " ")
+      .toTitleCase();
 
-    return AttributeData(_meta!);
-  }
-
-  AttributeData getFromConfigFile(String path) {
-    final _key = path.split('\\').last.replaceAll('.png', '');
-    final bool _contains = metadataConfig!.containsKey(_key);
-    if (_contains) {
-      return metadataConfig![_key];
-    } else {
-      return getFromPath(path);
-    }
-  }
-
-  if (isConfigExists) {
-    return getFromConfigFile;
-  } else {
-    return getFromPath;
-  }
+  return AttributeData(value: _meta!);
 }
 
 Future<List<Trait>> calculateTraits() async {
@@ -552,8 +553,6 @@ Future<void> scanFolder() async {
       .toList()
       .cast();
   // String _dirId;
-  AttributeData Function(String) getAttribute =
-      getMetadataAttr(isMetadataExists);
 
   for (Directory layerDir in _listDirLayers) {
     final _name = getDirname(layerDir.path, symbol: '-');
@@ -585,11 +584,17 @@ Future<void> scanFolder() async {
             .whereType<File>()
             .toList();
 
-    for (int i = 0; i < _layerElementsData.length; i++) {
-      final _path = _layerElementsData[i].path;
-      final _value = getAttribute(_path);
-      final _rawValue =
-          _path.split('\\').last.replaceAll('.png', '').split('-').first;
+    int _counter = 0;
+    for (var rawLayerElement in _layerElementsData) {
+      final _path = rawLayerElement.path;
+      final _value = getMetadataAttr(_path);
+      final _fileName = _path.split('\\').last;
+
+      if (!_fileName.toLowerCase().contains('.png')) {
+        continue;
+      }
+
+      final _rawValue = _fileName.replaceAll('.png', '').split('-').first;
 
       if (isCheckActived) {
         if (metadataCompliance != null) {
@@ -615,12 +620,13 @@ Future<void> scanFolder() async {
       }
 
       final _element = LayerElement(
-          id: i,
+          id: _counter,
           name: _name,
           attribute: _value,
           path: _path,
           weight: getWeight(_path));
       _layerElements.add(_element);
+      _counter++;
     }
     var logFile = File('$dir/logs.txt');
     if (await logFile.exists()) {
