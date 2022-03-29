@@ -4,7 +4,7 @@ class MetadataNFT {
   final String project;
   String? policyID;
   String? description;
-  String? type;
+  String? base;
   final String image;
   final String edition;
   final Map<String, dynamic> attributes;
@@ -16,7 +16,7 @@ class MetadataNFT {
       required this.image,
       required this.edition,
       required this.attributes,
-      this.type});
+      this.base});
 
   Map<String, dynamic> toJson() => {
         "721": {
@@ -25,9 +25,23 @@ class MetadataNFT {
               "project": project,
               "name": name,
               "image": image,
-              "mediaType": "image/png",
+              "mediabase": "image/png",
               "attributes": attributes,
-              "type": type
+              "base": base
+            }
+          },
+          "version": "1.0"
+        }
+      };
+  Map<String, dynamic> toJsonFinal() => {
+        "721": {
+          policyID != null ? policyID : "<policy_id>": {
+            assetName: {
+              "project": project,
+              "name": name,
+              "image": image,
+              "mediabase": "image/png",
+              "attributes": attributes,
             }
           },
           "version": "1.0"
@@ -45,7 +59,8 @@ class MetadataNFT {
         project: _asset[_assetName]["project"],
         image: _asset[_assetName]["image"],
         edition: _edition,
-        attributes: _asset[_assetName]["attributes"]);
+        attributes: _asset[_assetName]["attributes"],
+        base: _asset[_assetName]["base"]);
   }
 }
 

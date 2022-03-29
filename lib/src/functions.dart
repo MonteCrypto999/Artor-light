@@ -70,14 +70,15 @@ void addMetadata(String name, int edition, String ipfsHash) async {
   final String image = 'ipfs://$ipfsHash';
 
   final _editionWithDigits = _formatter.format(edition);
-  String? type;
+  String? base;
   if (attributesList.isNotEmpty) {
     for (var attr in attributesList) {
-      String _filterType = 'Base';
-      if (attr.name.toLowerCase() == _filterType.toLowerCase()) {
-        type = attr.attributes.first.value.replaceAll(_filterType, "").trim();
+      String _filterBase = 'Base';
+      if (attr.name.toLowerCase() == _filterBase.toLowerCase()) {
+        base = attr.attributes.first.value.replaceAll(_filterBase, "").trim();
         continue;
       }
+
       final _attrValues = attr.toJson();
 
       if (_attrValues.entries.length == 1) {
@@ -93,7 +94,7 @@ void addMetadata(String name, int edition, String ipfsHash) async {
     edition: _editionWithDigits,
     name: "$projectName #$_editionWithDigits",
     image: image,
-    type: type,
+    base: base,
     attributes: _attr,
   );
   saveMetaDataSingleFile(editionCount: edition, data: tempMetadata);
@@ -130,9 +131,10 @@ void addAttributes(LayerData layer) async {
   if (_rawjsonFile != null) {
     final _json = Map<String, dynamic>.from(_rawjsonFile);
 
-    final _rawAttr = MetadataNFT.fromJson(_json).attributes;
+    final _rawMetadata = MetadataNFT.fromJson(_json);
+    values.add(AttributeData(name: 'Base', value: _rawMetadata.base!));
 
-    for (var _attr in _rawAttr.entries) {
+    for (var _attr in _rawMetadata.attributes.entries) {
       values.add(AttributeData(name: _attr.key, value: _attr.value));
     }
   } else {
@@ -408,8 +410,16 @@ void writeMetaData(_data) =>
 
 void saveMetaDataSingleFile(
     {required int editionCount, required MetadataNFT data}) {
+  Map _jsonRaw;
+
+  if (data.attributes.containsKey("Head")) {
+    _jsonRaw = data.toJsonFinal();
+  } else {
+    _jsonRaw = data.toJson();
+  }
+
   File('$dir/output/$editionCount.json')
-      .writeAsStringSync(jsonEncode(data.toJson()));
+      .writeAsStringSync(jsonEncode(_jsonRaw));
 }
 
 String getDirname(String path, {String? symbol}) {
