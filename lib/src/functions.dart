@@ -496,43 +496,48 @@ AttributeData getMetadataAttr(String path) {
 }
 
 Future<List<Trait>> calculateTraits() async {
-  final Map<String, List<MetadataNFT>> _rawMetafiles = {};
+  late List<MetadataNFT> _rawMetafile = [];
   final List<MetadataNFT> _cachedList = [];
   final List<Trait> traits = [];
 
-  for (var _metaFile in metaFiles) {
-    if (await _metaFile.exists()) {
-      _cachedList.clear();
-      final _fileName = _metaFile.uri.pathSegments.last.replaceAll('.json', '');
-      final _raw = await _metaFile.readAsString();
-      final _json = List<Map<String, dynamic>>.from(json.decode(_raw));
+  final _metaFileFinal = File('$dir/output/_metadata.json');
+  if (await _metaFileFinal.exists()) {
+    _cachedList.clear();
+    final _raw = await _metaFileFinal.readAsString();
+    final _json = List<Map<String, dynamic>>.from(json.decode(_raw));
 
-      for (var _jsonData in _json) {
-        final _metaDataTmp = MetadataNFT.fromJson(_jsonData);
-        _cachedList.add(_metaDataTmp);
-      }
-      _rawMetafiles[_fileName] = _cachedList;
+    for (var _jsonData in _json) {
+      final _metaDataTmp = MetadataNFT.fromJson(_jsonData);
+      _cachedList.add(_metaDataTmp);
     }
+    _rawMetafile = _cachedList;
   }
-  if (_rawMetafiles.isNotEmpty) {
-    for (var _rawTraits in _rawMetafiles.values) {
-      for (var _meta in _rawTraits) {
-        for (var _attr in _meta.attributes.entries) {
-          if (traits.isNotEmpty) {
-            bool _f(e) => e.layer == _attr.key && e.name == _attr.value;
-            if (traits.any(_f)) {
-              final _traitListed = traits[traits.indexWhere(_f)];
-              _traitListed.count = _traitListed.count + 1;
-              traits[traits.indexWhere(_f)] = _traitListed;
-              continue;
-            }
+  if (_rawMetafile.isNotEmpty) {
+    for (var _meta in _rawMetafile) {
+      for (var _attr in _meta.attributes.entries) {
+        if (traits.isNotEmpty) {
+          bool _f(e) => e.layer == _attr.key && e.name == _attr.value;
+          if (traits.any(_f)) {
+            final _traitListed = traits[traits.indexWhere(_f)];
+            _traitListed.count = _traitListed.count + 1;
+            traits[traits.indexWhere(_f)] = _traitListed;
+            continue;
           }
+        }
+        if (_attr.key == "Head") {
+          for (var _rawTrait in (_attr.value as Map).entries) {
+            final _tmpTrait =
+                Trait(name: _rawTrait.value, layer: _rawTrait.key);
+            traits.add(_tmpTrait);
+          }
+        } else {
           final _tmpTrait = Trait(name: _attr.value, layer: _attr.key);
           traits.add(_tmpTrait);
         }
       }
     }
   }
+
   traits.sort((a, b) => b.count.compareTo(a.count));
 
   return traits;
@@ -540,7 +545,7 @@ Future<List<Trait>> calculateTraits() async {
 
 Future<void> exportTraitsToTxtFile(List<Trait> traits,
     {String filename = 'traits.txt'}) async {
-  final _file = File('$dir/$filename');
+  final _file = File('$dir/output/$filename');
   String data = traits
       .map((e) => e.layer + ' | ' + e.name + ' | ' + e.count.toString())
       .toList()
