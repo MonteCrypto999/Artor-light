@@ -412,6 +412,14 @@ void saveMetaDataSingleFile(
     {required int editionCount, required MetadataNFT data}) {
   Map _jsonRaw;
 
+  List<String> _size = ['s', 'l', 'm', 'xl'];
+  List<String> _layerSized = [
+    'armleft',
+    'armright',
+    'shoulderleft',
+    'shoulderright'
+  ];
+
   if (data.attributes.containsKey("Head")) {
     _jsonRaw = data.toJsonFinal();
   } else {
@@ -479,7 +487,9 @@ AttributeData getMetadataAttr(String path) {
   final String? _meta = _baseName
       .split('-')
       .first
+      .replaceAll('.', '999')
       .replaceAll(RegExp('[^A-Za-z0-9]'), " ")
+      .replaceAll('999', '.')
       .toTitleCase();
 
   return AttributeData(value: _meta!);

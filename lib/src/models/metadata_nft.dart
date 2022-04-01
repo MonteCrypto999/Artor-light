@@ -33,20 +33,41 @@ class MetadataNFT {
           "version": "1.0"
         }
       };
-  Map<String, dynamic> toJsonFinal() => {
-        "721": {
-          policyID != null ? policyID : "<policy_id>": {
-            assetName: {
-              "project": project,
-              "name": name,
-              "image": image,
-              "mediabase": "image/png",
-              "attributes": attributes,
-            }
-          },
-          "version": "1.0"
-        }
-      };
+  Map<String, dynamic> toJsonFinal() {
+    List<String> _layerSized = [
+      'armleft',
+      'armright',
+      'shoulderleft',
+      'shoulderright'
+    ];
+
+    attributes.updateAll((key, value) {
+      if (_layerSized.contains(key.toLowerCase())) {
+        List<String> _val = (value as String).split(" ");
+        _val.removeLast();
+
+        return _val.join(" ");
+      } else {
+        return value;
+      }
+    });
+
+    return {
+      "721": {
+        policyID != null ? policyID : "<policy_id>": {
+          assetName: {
+            "project": project,
+            "name": name,
+            "image": image,
+            "mediabase": "image/png",
+            "attributes": attributes,
+          }
+        },
+        "version": "1.0"
+      }
+    };
+  }
+
   factory MetadataNFT.fromJson(Map<String, dynamic> json) {
     final _asset = (json["721"] as Map<String, dynamic>).entries.first.value
         as Map<String, dynamic>;

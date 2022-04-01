@@ -1,4 +1,4 @@
-import 'package:artor_flutter/src/models/metadata_nft.dart';
+import 'metadata_nft.dart';
 
 const defaultWidth = 3352;
 const defaultHeight = 3755;
