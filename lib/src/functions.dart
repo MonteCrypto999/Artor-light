@@ -359,8 +359,8 @@ List<RandomElement> applyRules(
     List<RandomElement> randElements, List<LayerData> layers) {
   List<RandomElement> elements = randElements.toList();
 
-  for (RandomElement randomElement in randElements) {
-    for (Rule rule in rules!.values) {
+  for (Rule rule in rules!.values) {
+    for (RandomElement randomElement in elements) {
       if (rule.condition.toLowerCase() == randomElement.matcher) {
         if (rule.res.isNotEmpty) {
           List<String> _values = List<String>.from(rule.res["values"])
