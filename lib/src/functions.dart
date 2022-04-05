@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ffi';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:path/path.dart' show dirname;
@@ -97,7 +96,6 @@ void addMetadata(String name, int edition) async {
     attributes: _attr,
   );
   saveMetaDataSingleFile(editionCount: edition, data: tempMetadata);
-  // await uploadNFT(edition, tempMetadata);
 
   metadataList.add(tempMetadata);
   attributesList = [];
@@ -357,8 +355,6 @@ bool checkSize(List<RandomElement> randElements) {
 String sanitizeMeta(String value, String base) {
   final _splitBase = base.split(" ");
   final _splitValue = value.split(" ");
-
-  List<String> _sanitizedValue = List.from(_splitValue);
 
   for (String _valPart in _splitValue) {
     for (String _basePart in _splitBase) {
@@ -699,10 +695,11 @@ Future<dynamic> uploadFiletoIPFS(File file) async {
 
   var _credentials = config!["auth"];
   var _baseUrl = Uri.parse("https://ipfs.infura.io:5001/api/v0/add");
+  var _headers = {HttpHeaders.authorizationHeader: 'Basic $_credentials'};
   var _bytes = file.readAsBytesSync();
 
   final _req = http.MultipartRequest("POST", _baseUrl);
-  _req.headers.addAll({HttpHeaders.authorizationHeader: 'Basic $_credentials'});
+  _req.headers.addAll(_headers);
 
   final _multipartFile = http.MultipartFile.fromBytes('file', _bytes,
       contentType: MediaType('image', 'png'));
@@ -716,11 +713,19 @@ Future<dynamic> uploadFiletoIPFS(File file) async {
 
   final _decode = json.decode(_response.body) as Map<String, dynamic>;
   print(_decode);
-  return _decode["Hash"];
+
+  String _hash = _decode["Hash"];
+  var _pinUrl =
+      Uri.parse("https://ipfs.infura.io:5001/api/v0/pin/add?arg=$_hash");
+  final _pinFile = await http.post(_pinUrl, headers: _headers);
+
+  print(_pinFile.body);
+
+  return _hash;
 }
 
 Future<dynamic> uploadAllFilestoIPFS() async {
-  const _pngExtension = 'png';
+  const _imageExtension = 'png';
   const _jsonExtension = 'json';
 
   final Directory _pathDir = Directory('$dir$outputDir');
@@ -730,7 +735,7 @@ Future<dynamic> uploadAllFilestoIPFS() async {
   final List<File> _rawFileList = entities.whereType<File>().toList();
 
   final List<File> _pngList = _rawFileList
-      .where((file) => file.path.getExtensionName() == _pngExtension)
+      .where((file) => file.path.getExtensionName() == _imageExtension)
       .toList();
 
   for (File _png in _pngList) {
@@ -746,8 +751,7 @@ Future<dynamic> uploadAllFilestoIPFS() async {
       throw "Error: Image File for $_trimFilename doesn't exists";
     }
 
-    // final _ipfsHash = await uploadFiletoIPFS(_png);
-    const _ipfsHash = 'testIPFS';
+    final _ipfsHash = await uploadFiletoIPFS(_png);
 
     final _jsonFile = await readJsonFile(_metaRawFile.path, absolutePath: true);
     MetadataNFT _meta = MetadataNFT.fromJson(_jsonFile);
@@ -758,7 +762,7 @@ Future<dynamic> uploadAllFilestoIPFS() async {
   }
 }
 
-Future<void> uploadNFT(int edition, MetadataNFT metadata) async {
+Future<void> uploadNFT(MetadataNFT metadata) async {
   if (!haveConfig) {
     throw 'Error: Cant upload without config json file';
   } else if (!config!.containsKey("nft_maker")) {
@@ -788,6 +792,37 @@ Future<void> uploadNFT(int edition, MetadataNFT metadata) async {
 
   var _decode = json.decode(_response.body);
   print(_decode);
+}
+
+Future<dynamic> uploadAllNFTS() async {
+  const _jsonExtension = 'json';
+
+  final Directory _pathDir = Directory('$dir$outputDir');
+  final List<FileSystemEntity> entities =
+      await _pathDir.list(followLinks: false).toList();
+
+  final List<File> _rawFileList = entities.whereType<File>().toList();
+
+  final List<File> _metaList = _rawFileList
+      .where((file) => file.path.getExtensionName() == _jsonExtension)
+      .toList();
+
+  for (File _metaRaw in _metaList) {
+    final _filename = _metaRaw.path.split('\\').last.split('.').first;
+
+    if (_filename == "_metadata") {
+      continue;
+    }
+
+    if (!await _metaRaw.exists()) {
+      throw "Error: Metadata File for $_filename doesn't exists";
+    }
+
+    final _jsonFile = await readJsonFile(_metaRaw.path, absolutePath: true);
+    MetadataNFT _meta = MetadataNFT.fromJson(_jsonFile);
+
+    await uploadNFT(_meta);
+  }
 }
 
 Future<void> startCreating(int endEditionAt) async {

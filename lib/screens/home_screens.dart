@@ -1,3 +1,4 @@
+import 'package:artor_flutter/screens/nfts_screen.dart';
 import 'package:flutter/material.dart';
 
 import 'components/title_component.dart';
@@ -99,6 +100,19 @@ class BuildForm extends StatelessWidget {
             },
             child: Text(
               'Charger les images sur serveur IPFS',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+          SizedBox(
+            height: 20,
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.push(
+                  context, MaterialPageRoute(builder: (_) => NFTSScreen()));
+            },
+            child: Text(
+              'Charger les NFTS',
               style: TextStyle(color: Colors.white),
             ),
           ),
