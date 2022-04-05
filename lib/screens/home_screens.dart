@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'components/title_component.dart';
 
+import 'ipfs_screen.dart';
 import 'processing_screens.dart';
 import 'traits_screen.dart';
 
@@ -80,14 +81,24 @@ class BuildForm extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
-              if (_formK.currentState!.validate()) {
-                _formK.currentState!.save();
-                Navigator.push(
-                    context, MaterialPageRoute(builder: (_) => TraitsScreen()));
-              }
+              Navigator.push(
+                  context, MaterialPageRoute(builder: (_) => TraitsScreen()));
             },
             child: Text(
               'Calculer les traits du projet',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+          SizedBox(
+            height: 20,
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.push(
+                  context, MaterialPageRoute(builder: (_) => IPFSScreen()));
+            },
+            child: Text(
+              'Charger les images sur serveur IPFS',
               style: TextStyle(color: Colors.white),
             ),
           ),

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ffi';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:path/path.dart' show dirname;
@@ -45,9 +46,10 @@ extension StringCasingExtension on String {
       length > 0 ? '${this[0].toUpperCase()}${substring(1)}' : '';
   String toTitleCase() =>
       split(' ').map((str) => str.toCapitalized()).join(' ');
+  String getExtensionName() => split('.').last;
 }
 
-Future<String> saveImage(_editionCount) async {
+Future<void> saveImage(_editionCount) async {
   final _picture = recorder.endRecording();
   final _img = await _picture.toImage(width, height);
   final _encodePng = await _img.toByteData(format: ui.ImageByteFormat.png);
@@ -55,19 +57,12 @@ Future<String> saveImage(_editionCount) async {
   if (_encodePng != null) {
     final _file = File('$dir/output/${_formatter.format(_editionCount)}.png');
     _file.writeAsBytesSync(_encodePng.buffer.asUint8List());
-    // if (haveConfig) {
-    //   return await uploadFiletoIPFS(_file);
-    // }
-
-    return "QmbBzNmmBZMqsrhuqLjnKeG1H5NeS515QrcevyBRSkryoy"; // TODO Change for the deployment
-  } else {
-    return "";
   }
 }
 
-void addMetadata(String name, int edition, String ipfsHash) async {
+void addMetadata(String name, int edition) async {
   final Map<String, dynamic> _attr = {};
-  final String image = 'ipfs://$ipfsHash';
+  const String image = "ipfs";
 
   final _editionWithDigits = _formatter.format(edition);
   String? base;
@@ -77,6 +72,10 @@ void addMetadata(String name, int edition, String ipfsHash) async {
       if (attr.name.toLowerCase() == _filterBase.toLowerCase()) {
         base = attr.attributes.first.value.replaceAll(_filterBase, "").trim();
         continue;
+      }
+      for (var attribute in attr.attributes) {
+        String _metaSanitize = sanitizeMeta(attribute.value, base!);
+        attribute.value = _metaSanitize;
       }
 
       final _attrValues = attr.toJson();
@@ -353,6 +352,24 @@ bool checkSize(List<RandomElement> randElements) {
     }
   }
   return _isSized;
+}
+
+String sanitizeMeta(String value, String base) {
+  final _splitBase = base.split(" ");
+  final _splitValue = value.split(" ");
+
+  List<String> _sanitizedValue = List.from(_splitValue);
+
+  for (String _valPart in _splitValue) {
+    for (String _basePart in _splitBase) {
+      if (_valPart.toLowerCase() == _basePart.toLowerCase()) {
+        int _id = _splitValue.indexOf(_valPart);
+        _splitValue[_id] = "";
+      }
+    }
+  }
+
+  return _splitValue.join(" ").trim();
 }
 
 List<RandomElement> applyRules(
@@ -702,6 +719,45 @@ Future<dynamic> uploadFiletoIPFS(File file) async {
   return _decode["Hash"];
 }
 
+Future<dynamic> uploadAllFilestoIPFS() async {
+  const _pngExtension = 'png';
+  const _jsonExtension = 'json';
+
+  final Directory _pathDir = Directory('$dir$outputDir');
+  final List<FileSystemEntity> entities =
+      await _pathDir.list(followLinks: false).toList();
+
+  final List<File> _rawFileList = entities.whereType<File>().toList();
+
+  final List<File> _pngList = _rawFileList
+      .where((file) => file.path.getExtensionName() == _pngExtension)
+      .toList();
+
+  for (File _png in _pngList) {
+    final _filename = _png.path.split('\\').last.split('.').first;
+    final _trimFilename = int.parse(_filename).toString();
+    final _metaRawFile = File('$dir$outputDir/$_trimFilename.$_jsonExtension');
+
+    if (!await _metaRawFile.exists()) {
+      throw "Error: Metadata File for $_trimFilename doesn't exists";
+    }
+
+    if (!await _png.exists()) {
+      throw "Error: Image File for $_trimFilename doesn't exists";
+    }
+
+    // final _ipfsHash = await uploadFiletoIPFS(_png);
+    const _ipfsHash = 'testIPFS';
+
+    final _jsonFile = await readJsonFile(_metaRawFile.path, absolutePath: true);
+    MetadataNFT _meta = MetadataNFT.fromJson(_jsonFile);
+
+    final _newMeta = MetadataNFT.from(_meta, image: 'ipfs://$_ipfsHash');
+
+    await _metaRawFile.writeAsString(jsonEncode(_newMeta));
+  }
+}
+
 Future<void> uploadNFT(int edition, MetadataNFT metadata) async {
   if (!haveConfig) {
     throw 'Error: Cant upload without config json file';
@@ -755,14 +811,11 @@ Future<void> startCreating(int endEditionAt) async {
       nftCanvas = ui.Canvas(recorder);
 
       await constructLayerToDna(newDna, race);
-
-      String _ipfsHash = await saveImage(editionCount);
-      if (_ipfsHash.isEmpty) {
-        throw 'Error: ipfs hash invalid';
-      }
-      addMetadata(editionCount.toString(), editionCount, _ipfsHash);
+      await saveImage(editionCount);
+      addMetadata(editionCount.toString(), editionCount);
 
       dnaList.add(newDna);
+      print(newDna);
       editionCount++;
     } else {
       print("DNA exists!");

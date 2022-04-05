@@ -83,6 +83,24 @@ class MetadataNFT {
         attributes: _asset[_assetName]["attributes"],
         base: _asset[_assetName]["base"]);
   }
+  factory MetadataNFT.from(MetadataNFT metadata,
+      {String? assetName,
+      String? name,
+      String? project,
+      String? policyID,
+      String? description,
+      String? base,
+      String? image,
+      String? edition,
+      Map<String, dynamic>? attributes}) {
+    return MetadataNFT(
+        assetName: assetName ?? metadata.assetName,
+        name: name ?? metadata.name,
+        project: project ?? metadata.project,
+        image: image ?? metadata.image,
+        edition: edition ?? metadata.edition,
+        attributes: attributes ?? metadata.attributes);
+  }
 }
 
 class LayerAttributesData {
